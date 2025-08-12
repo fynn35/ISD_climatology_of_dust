@@ -14,9 +14,19 @@ class data_utils():
     
     @staticmethod      
     def get_number_of_events(df):
-        #ToDo: list or dict?
-        #Dict so I can handle the different lengths
-        #ToDo: does year always work?
+        '''
+        Method that returns a dictionary with the number of entries for each year from the passed dataframe
+        
+        Parameters
+        ----------
+        df : pd.Dataframe
+            Dataframe of ISD measurements with multiple years of record
+
+        Returns
+        -------
+        no_occur : Dictionary
+            Dictionary containing integers. The key is the year. When df.year is a string the key is also a string
+        '''
         years = df.year.unique()
         no_occur = {}
         for i in years:
@@ -27,15 +37,19 @@ class data_utils():
     @staticmethod    
     def calc_relative_dust_days(df, station_id=False, timeframe = None):
         '''
-        
+        Method that calculates the percentage of dust events against all measurements for the passed station.
     
         Parameters
         ----------
         df : pd.DataFrame
-            DESCRIPTION.
-        station_id : int
-            DESCRIPTION.
-    
+            Dataframe of ISD measurements
+        station_id : int or list of int
+            Default: False
+            Unique station identifier.
+        timeframe : list of strings
+            Default: None
+            If not all years in the dataframe are subject to analysis this list passes the years to analyse
+            
         Returns
         -------
         dust_perc: Dictionary
@@ -54,7 +68,6 @@ class data_utils():
         
         dust_perc = {}
         if type(timeframe) == np.ndarray:
-            #ToDo Test this
             plot_dict = {}
             timeframe_str = list(map(str,timeframe))
             df_timeframe = station_data[station_data.year.isin(timeframe_str)]
@@ -66,7 +79,6 @@ class data_utils():
                         plot_dict[str(year) + "_" + str(i)] = dust.size/test.size
                     else:
                         plot_dict[str(year) + "_" + str(i)] = 0
-            #plot_dict[str(year)+"_"+"12"]
             dust_perc = plot_dict
         else:
             
@@ -81,7 +93,7 @@ class data_utils():
     @staticmethod 
     def calc_relativity(dict_1, dict_2):
         '''
-        
+        Calculate the percentage of events between two dictionaries for each key.
 
         Parameters
         ----------
@@ -107,21 +119,24 @@ class data_utils():
         return dust_perc
                 
     @staticmethod
-    def load_climate_index(path="/media/tow_lin/E4A8-F53C/BA/ISD_data/",name=["NAO","ENSO"],timeframe = None):
+    def load_climate_index(path="/ISD_data/",name=["NAO","ENSO"],timeframe = None):
         '''
-        
+        Load the monthly climate index from the file 
 
         Parameters
         ----------
-        name : str
-            Choose a climate index between ["NAO","ENSO"].
         path : str
-            DESCRIPTION.
+            Path to the file without file name
+        name : str
+            Choose a climate index between ["NAO","ENSO"]. This determines the file name
+        timeframe : list of strings
+            Default: None
+            If not all years in the dataframe are subject to analysis this list passes the years to analyse
 
         Returns
         -------
         climate_index : dict
-            Dictionary with monthly climate index.
+            Dictionary with monthly climate index. The key is the year_month as a string
 
         '''
         
@@ -160,26 +175,25 @@ class data_utils():
     @staticmethod
     def load_realtive_dust_days_by_season(df, timeframe):
         '''
-        
+        Calculate the percentage of dust events starting in december of the year before the timeframe starts and ending in november of the last year
 
         Parameters
         ----------
         df : pd.DataFrame
             DataFrame containing a single stations data.
-        timeframe : TYPE
-            DESCRIPTION.
+        timeframe : list of strings
+            List of the years to analyse
 
         Returns
         -------
         plot_dict : Dict
-            Dict of relative dust days .
+            Dict of relative dust days.
 
         '''
         plot_dict = {}
         timeframe_str = list(map(str,timeframe))
         df_timeframe = df[df.year.isin(timeframe_str)]
         
-        #df_dec = df[df.year == str(min(timeframe)-1)][df.month == 12]
         df_dec = df.loc[df.year == str(min(timeframe)-1)].query("month ==12")
         dec_dust = df_dec.drop(df_dec[df_dec.dust_occ ==0].index)
         if df_dec.size == 0:
@@ -197,23 +211,23 @@ class data_utils():
                     dust = test.drop(test[test.dust_occ == 0].index)
                     plot_dict[str(year) + "_" + str(i)] = dust.size/test.size
                 
-        
         return plot_dict
     
     @staticmethod
     def order_by_season(plot_dict):
         '''
-        
+        Group the  monthly percentage of dust days into seasons
 
         Parameters
         ----------
         plot_dict : Dict
+            Monthly percentage of dust events. Keys are year_month
             eg. load_realtive_dust_days_by_season.
 
         Returns
         -------
         dust_seasonality : Dict
-            2-D Dict containig seasons:{Dict of years}.
+            2-D Dict containig seasons:{Dict of years}. Keys are season and year
 
         '''
         dust_seasonality = {"spring": {}, "summer": {},"fall":{},"winter":{}}
@@ -225,10 +239,10 @@ class data_utils():
             year, month = key.split("_")
             
             try:
-                if month in ("3","6","9"):#,"06","09","12"):
+                if month in ("3","6","9"):
                     dust_seasonality[season_label[month]][year] = perc
                 
-                elif month in ("1","2","4","7","10","5","8","11"):#,"5"):
+                elif month in ("1","2","4","7","10","5","8","11"):
                     dust_seasonality[season_label[month]][year] += perc
                     if month in ("2","5","8","11"):
                         dust_seasonality[season_label[month]][year] /= 3
@@ -238,22 +252,25 @@ class data_utils():
                 print("KeyError" + year + "_" + month)
                 continue
             
-        
         return dust_seasonality
+        
     @staticmethod
     def order_df_by_season(df,season):
         '''
-        
+         Group the  monthly percentage of dust days into seasons
 
         Parameters
         ----------
         df : pd.DataFrame
-            df with one Station
+            Datafram containing measurements for a single station
+        seasons : string
 
         Returns
         -------
-        dust_seasonality : Dict
-            2-D Dict containig seasons:{Dict of years}.
+        df2 : pd.DataFrame
+            
+        #dust_seasonality : Dict
+            #2-D Dict containig seasons:{Dict of years}. Keys are season and year
 
         '''
         dust_seasonality = {"spring": {}, "summer": {},"fall":{},"winter":{}}
@@ -265,14 +282,15 @@ class data_utils():
         seas = season_label.keys(season)
         df2 = df[df.month in seas]
         return df2
+        
         for key, perc in plot_dict.items():
             year, month = key.split("_")
             
             try:
-                if month in ("3","6","9"):#,"06","09","12"):
+                if month in ("3","6","9"):
                     dust_seasonality[season_label[month]][year] = perc
                 
-                elif month in ("1","2","4","7","10","5","8","11"):#,"5"):
+                elif month in ("1","2","4","7","10","5","8","11"):
                     dust_seasonality[season_label[month]][year] += perc
                     if month in ("2","5","8","11"):
                         dust_seasonality[season_label[month]][year] /= 3
@@ -282,12 +300,24 @@ class data_utils():
                 print("KeyError" + year + "_" + month)
                 continue
             
-        
         return dust_seasonality
         
     @staticmethod
     def cluster_mw1(df):
-        #ToDo Split code for rain
+        '''
+         Group the first weather reported by its first digit
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Datafram containing measurements for a single station
+
+        Returns
+        -------
+        cluster_dict : Dictionary of int
+            Dictionary containing integers for the first digit as a string as key
+
+        '''
         cluster = df.drop(df[pd.isna(df.MW1)].index)
         cluster_dict = {"0":0,"2":0,"3":0,"5":0, "98":0, "else":0, "0_nodust":0}
         for i in cluster.MW1:
@@ -311,21 +341,24 @@ class data_utils():
     
     @staticmethod 
     def cluster_yearly_mw1(dataframe, station_id,list_of_codes= ["06","07","08"]):
-        '''df = dataframe[dataframe.STATION == station_id]
-        cluster_dict = {}
-        cluster = df.drop(df[pd.isna(df.MW1)].index)
-        for year in cluster.year:
-            #cluster_dict[year] = 0
-            temp = cluster.drop(cluster[str(cluster.MW1)[0:2] in ("06","07","08","09")].query("year" == year).index)
-            print(temp.size)
-            cluster_dict[year] = temp.size
-            for i in cluster.MW1:
-                temp = str(i)[:2]
-                if temp in("06","07","08","09"):
-                    cluster_dict[year] += 1'''
-        #station_data = df[df.STATION == station_id]
-        #all_events = data_utils.get_number_of_events(station_data)
-        
+        '''
+         Find the number of events reported for each of a list of SYNOP Codes
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Datafram containing measurements for a single station
+        station_id : int
+            Unique station identifier
+        list_of_codes : list of strings
+            List of SYNOP weather codes 
+
+        Returns
+        -------
+        cluster_dict : Dictionary
+            Dictionary containing integers with SYNOP weather codes as string as key
+
+        '''        
         df = dataframe[dataframe.STATION == station_id]
         cluster = df.drop(df[pd.isna(df.MW1)].index)
         
